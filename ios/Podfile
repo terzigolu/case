@@ -1,0 +1,58 @@
+# Resolve react_native_pods.rb with node to allow for hoisting
+require Pod::Executable.execute_command('node', ['-p',
+  'require.resolve(
+    "react-native/scripts/react_native_pods.rb",
+    {paths: [process.argv[1]]},
+  )', __dir__]).strip
+
+platform :ios, min_ios_version_supported
+prepare_react_native_project!
+
+# Eğer `react-native-flipper` kullanıyorsanız, iOS derlemeniz `NO_FLIPPER=1` ayarlandığında başarısız olacaktır.
+# çünkü `react-native-flipper` (FlipperKit,...) gibi bağımlılıklara ihtiyaç duyar ve bunlar hariç tutulacaktır.
+#
+# Bunu düzeltmek için `react-native-flipper`'ı `react-native.config.js` kullanarak hariç tutabilirsiniz.
+# ```js
+# module.exports = {
+#   dependencies: {
+#     ...(process.env.NO_FLIPPER ? { 'react-native-flipper': { platforms: { ios: null } } } : {}),
+# ```
+flipper_config = ENV['NO_FLIPPER'] == "1" ? FlipperConfiguration.disabled : FlipperConfiguration.enabled
+
+linkage = ENV['USE_FRAMEWORKS']
+if linkage != nil
+  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
+  use_frameworks! :linkage => linkage.to_sym
+end
+
+target 'getcase' do
+  config = use_native_modules!
+
+  # React Native Vector Icons için pod ayarı
+  pod 'RNVectorIcons', :path => '../node_modules/react-native-vector-icons'
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    # Flipper'ı etkinleştirir.
+    #
+    # Eğer use_frameworks! etkinleştirildiyse, Flipper çalışmayacaktır ve
+    # aşağıdaki satırı devre dışı bırakmalısınız.
+    :flipper_configuration => flipper_config,
+    # Uygulama kök dizininizin mutlak yolu.
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+
+  target 'getcaseTests' do
+    inherit! :complete
+    # Test için pod'lar
+  end
+
+  post_install do |installer|
+    # https://github.com/facebook/react-native/blob/main/packages/react-native/scripts/react_native_pods.rb#L197-L202
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false
+    )
+  end
+end
