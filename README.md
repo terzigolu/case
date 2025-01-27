@@ -96,7 +96,7 @@ Bu proje, modern bir e-ticaret deneyimi sunmayı amaçlayan React Native tabanl�
 
 1. Projeyi klonlayın:
 ```bash
-git clone [text](https://github.com/terzigolu/case)
+git clone https://github.com/terzigolu/case
 ```
 
 2. Bağımlılıkları yükleyin:
